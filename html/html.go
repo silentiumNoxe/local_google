@@ -33,6 +33,17 @@ func (n *Node) Append(child *Node) {
 	child.Prev = last
 }
 
+func (n *Node) Childs() []*Node {
+	var childs []*Node
+	var child = n.FirstChild
+	for child != nil {
+		childs = append(childs, child)
+		child = child.Next
+	}
+
+	return childs
+}
+
 type Token struct {
 	Type    int
 	Content string
