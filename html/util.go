@@ -35,7 +35,6 @@ func isVoidElement(tag string) bool {
 var ignoreContentTags = []string{
 	"script",
 	"style",
-	"template",
 }
 
 func ignoreContent(tag string) bool {
@@ -99,7 +98,9 @@ func splitAttributes(s string) []string {
 		if qOpen && rb[0] == qCloseRune {
 			qCloseRune = 0
 			qOpen = false
-			attrs = append(attrs, string(buf))
+			str := string(buf)
+			str = strings.TrimSpace(str)
+			attrs = append(attrs, str)
 			buf = nil
 		}
 	}

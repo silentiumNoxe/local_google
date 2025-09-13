@@ -247,24 +247,22 @@ func (r *Reader) Next(skipTag string) (*Token, error) {
 
 func (r *Reader) skipTo(s string) error {
 	var l = len(s)
-	var buf []byte
 	rb := make([]byte, 1)
-	for {
+
+	for n := 0; n < l; {
 		_, err := r.r.Read(rb)
 		if err != nil {
 			return err
 		}
 
-		buf = append(buf, rb[0])
-
-		if len(buf) >= l {
-			if string(buf[len(buf)-l:]) == s {
-				return nil
-			} else {
-				buf = nil
-			}
+		if s[n] == rb[0] {
+			n++
+		} else {
+			n = 0
 		}
 	}
+
+	return nil
 }
 
 func (r *Reader) write(b []byte) {

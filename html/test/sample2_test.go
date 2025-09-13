@@ -38,6 +38,11 @@ func TestSample2(t *testing.T) {
 		return
 	}
 
+	if root.Tag != "ROOT" {
+		t.Errorf("Invalid tag: expected=ROOT; actual=%s", root.Tag)
+		return
+	}
+
 	elem := root.FirstChild
 	if elem == nil {
 		t.Errorf("No child")
@@ -71,6 +76,29 @@ func TestSample2(t *testing.T) {
 
 	if body.Tag != "body" {
 		t.Errorf("Invalid tag: expected=body; actual=%s", body.Tag)
+		return
+	}
+
+	var aElement = body.FirstChild.FirstChild.Next.FirstChild
+	if aElement == nil {
+		t.Errorf("No child a")
+		return
+	}
+
+	var href = aElement.Attr["href"]
+	if href != "/about-us" {
+		t.Errorf("Invalid href: expected=\"/about-us\"; actual=%s", href)
+		return
+	}
+
+	var img = body.FirstChild.FirstChild.Next.Next
+	if img == nil {
+		t.Errorf("No child img")
+		return
+	}
+
+	if img.Attr["alt"] != "Company Logo" {
+		t.Errorf("Invalid alt: expected=\"Company Logo\"; actual=%s", img.Attr["alt"])
 		return
 	}
 }

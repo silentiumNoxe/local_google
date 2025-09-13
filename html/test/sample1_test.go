@@ -19,6 +19,11 @@ func TestSample1(t *testing.T) {
 		return
 	}
 
+	if root.Tag != "ROOT" {
+		t.Errorf("Invalid tag: expected=ROOT; actual=%s", root.Tag)
+		return
+	}
+
 	var div = root.FirstChild
 	if div == nil {
 		t.Errorf("No child")
