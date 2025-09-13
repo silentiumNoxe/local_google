@@ -12,7 +12,7 @@ func main() {
 	var wg = &sync.WaitGroup{}
 	//var ctx = context.Background()
 
-	file, err := os.OpenFile("sample_3.html", os.O_RDONLY, 0644)
+	file, err := os.OpenFile("test.html", os.O_RDONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
