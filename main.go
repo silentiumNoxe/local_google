@@ -69,6 +69,10 @@ func AnalyzePage(root *html.Node) (*AnalyzeResult, error) {
 		s = strings.ToLower(s)
 		entries := strings.Split(s, " ")
 		for _, x := range entries {
+			x = strings.TrimSpace(x)
+			if x == "" {
+				continue
+			}
 			result.Index[x]++
 		}
 	}
@@ -82,7 +86,10 @@ func AnalyzePage(root *html.Node) (*AnalyzeResult, error) {
 		}
 
 		if n.Tag == "a" {
-			result.Links = append(result.Links, n.Content)
+			uri := n.Attr["href"]
+			if uri != "" {
+				result.Links = append(result.Links, uri)
+			}
 		}
 
 		extractContent(n.Content)
