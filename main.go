@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"local_google/html"
 	"local_google/robot"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -26,7 +26,12 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("%v\n", root)
+	result, err := AnalyzePage(root)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("%v\n", result)
 
 	var robotCfg = robot.DefaultConfig()
 	robotCfg.Queue = &robot.TaskQueue{}
@@ -76,56 +81,45 @@ func main() {
 	wg.Wait()
 }
 
-type SimpleWriter struct {
-	arr []byte
-	i   int
-}
-
-func NewSimpleWriter(arr []byte) *SimpleWriter {
-	return &SimpleWriter{arr: arr}
-}
-
-func (w *SimpleWriter) WriteByte(b byte) error {
-	if w.i >= len(w.arr) {
-		return io.EOF
+func AnalyzePage(root *html.Node) (*AnalyzeResult, error) {
+	var result = AnalyzeResult{
+		Index: make(map[string]int),
 	}
 
-	w.arr[w.i] = b
-	w.i++
-
-	return nil
-}
-
-func (w *SimpleWriter) Write(p []byte) (n int, err error) {
-	for _, b := range p {
-		if err := w.WriteByte(b); err != nil {
-			return n, err
+	var extractContent = func(s string) {
+		s = strings.ToLower(s)
+		entries := strings.Split(s, " ")
+		for _, x := range entries {
+			x = strings.TrimSpace(x)
+			if x == "" {
+				continue
+			}
+			result.Index[x]++
 		}
 	}
 
-	return len(p), nil
-}
+	var walker = html.NewWalker(root)
 
-func (w *SimpleWriter) Reset() {
-	w.i = 0
-}
+	for {
+		n := walker.Next()
+		if n == nil {
+			break
+		}
 
-type Node struct {
-	Tag   string
-	Attr  map[string]string
-	Child []*Node
-}
+		if n.Tag == "a" {
+			uri := n.Attr["href"]
+			if uri != "" {
+				result.Links = append(result.Links, uri)
+			}
+		}
 
-func NewNode(tag string) *Node {
-	return &Node{
-		Tag:   tag,
-		Attr:  map[string]string{},
-		Child: []*Node{},
+		extractContent(n.Content)
 	}
+
+	return &result, nil
 }
 
-func clearBuf(b []byte) {
-	for i := range b {
-		b[i] = 0
-	}
+type AnalyzeResult struct {
+	Index map[string]int
+	Links []string
 }
