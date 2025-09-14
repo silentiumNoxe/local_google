@@ -9,13 +9,10 @@ import (
 type TaskQueue struct {
 	First *Task
 	Last  *Task
-	lock  *sync.Mutex
+	Mutex *sync.Mutex
 }
 
 func (q *TaskQueue) Push(target string) {
-	q.lock.Lock()
-	defer q.lock.Unlock()
-
 	slog.Debug(fmt.Sprintf("Added to queue target: %s", target))
 
 	task := &Task{Target: target}
@@ -32,8 +29,8 @@ func (q *TaskQueue) Push(target string) {
 }
 
 func (q *TaskQueue) Pop() *Task {
-	q.lock.Lock()
-	defer q.lock.Unlock()
+	q.Mutex.Lock()
+	defer q.Mutex.Unlock()
 
 	var x = q.First
 	if x == nil {
@@ -42,6 +39,10 @@ func (q *TaskQueue) Pop() *Task {
 
 	q.First = x.Next
 	return x
+}
+
+func (q *TaskQueue) Empty() bool {
+	return q.First == nil
 }
 
 type Task struct {

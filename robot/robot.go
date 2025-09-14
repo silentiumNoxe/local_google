@@ -2,12 +2,14 @@ package robot
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"local_google/html"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
-
-	"golang.org/x/net/html"
 )
 
 type Robot struct {
@@ -30,7 +32,8 @@ func New(ctx context.Context, cfg Config, id string) *Robot {
 
 // Start running endless loop. Execute this function as a goroutine.
 func (r *Robot) Start() error {
-	slog.Info("Robot %s started", r.id)
+	r.stopped = false
+	slog.Info("Robot started", slog.String("rid", r.id))
 	for {
 		if r.stopped {
 			time.Sleep(time.Second * 5)
@@ -49,33 +52,52 @@ func (r *Robot) Start() error {
 }
 
 func (r *Robot) step() error {
-	slog.Info("Robot doing step", slog.String("rid", r.id))
+	slog.Debug("Robot step", slog.String("rid", r.id))
 
 	task := r.queue.Pop()
 	if task == nil {
+		slog.Info("Queue is empty", slog.String("rid", r.id))
 		return nil
 	}
 
-	url := task.Target
-	if url == "" {
-		return nil
+	if task.Target == "" {
+		return fmt.Errorf("empty target")
 	}
 
-	reader, err := r.request(url)
+	target, err := url.Parse(task.Target)
 	if err != nil {
 		return err
 	}
 
+	reader, err := r.request(target)
+	if err != nil {
+		return err
+	}
+
+	slog.Debug("Parse page", slog.String("rid", r.id))
 	node, err := html.Parse(reader)
 	if err != nil {
 		return err
 	}
 
+	slog.Debug("Analyze page", slog.String("rid", r.id))
+	result, err := analyzePage(node, fmt.Sprintf("%s://%s", target.Scheme, target.Host))
+	if err != nil {
+		return err
+	}
+
+	r.queue.Mutex.Lock()
+	for _, l := range result.Links {
+		r.queue.Push(l)
+	}
+	r.queue.Mutex.Unlock()
+
 	return nil
 }
 
-func (r *Robot) request(url string) (io.Reader, error) {
-	resp, err := http.Get(url)
+func (r *Robot) request(u *url.URL) (io.Reader, error) {
+	slog.Debug("Request page", slog.String("rid", r.id), slog.String("url", u.String()))
+	resp, err := http.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -89,4 +111,51 @@ func (r *Robot) Stop() {
 
 func (r *Robot) Stopped() bool {
 	return r.stopped
+}
+
+func analyzePage(root *html.Node, domain string) (*AnalyzeResult, error) {
+	var result = AnalyzeResult{
+		Index: make(map[string]int),
+	}
+
+	var extractContent = func(s string) {
+		s = strings.ToLower(s)
+		entries := strings.Split(s, " ")
+		for _, x := range entries {
+			x = strings.TrimSpace(x)
+			if x == "" {
+				continue
+			}
+			result.Index[x]++
+		}
+	}
+
+	var walker = html.NewWalker(root)
+
+	for {
+		n := walker.Next()
+		if n == nil {
+			break
+		}
+
+		if n.Tag == "a" {
+			uri := n.Attr["href"]
+			if uri != "" {
+				if !strings.HasPrefix(uri, "http") {
+					uri = domain + uri
+				}
+
+				result.Links = append(result.Links, uri)
+			}
+		}
+
+		extractContent(n.Content)
+	}
+
+	return &result, nil
+}
+
+type AnalyzeResult struct {
+	Index map[string]int
+	Links []string
 }

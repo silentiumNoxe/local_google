@@ -5,36 +5,18 @@ import (
 	"fmt"
 	"local_google/html"
 	"local_google/robot"
-	"os"
+	"log/slog"
 	"strings"
 	"sync"
 )
 
 func main() {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	var wg = &sync.WaitGroup{}
 	var ctx = context.Background()
 
-	file, err := os.OpenFile("test.html", os.O_RDONLY, 0644)
-	if err != nil {
-		panic(err)
-	}
-
-	defer file.Close()
-
-	root, err := html.Parse(file)
-	if err != nil {
-		panic(err)
-	}
-
-	result, err := AnalyzePage(root)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("%v\n", result)
-
 	var robotCfg = robot.DefaultConfig()
-	robotCfg.Queue = &robot.TaskQueue{}
+	robotCfg.Queue = &robot.TaskQueue{Mutex: &sync.Mutex{}}
 	robotCfg.Queue.Push("https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html")
 
 	var robots = make([]*robot.Robot, 3)
@@ -51,32 +33,6 @@ func main() {
 			}
 		}(r)
 	}
-
-	//var reader = bytes.NewReader(body)
-	//req, err := http.NewRequest("GET", "https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html", reader)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//resp, err := http.DefaultClient.Do(req)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//body, err = io.ReadAll(resp.Body)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//fmt.Printf("\n%s\n", body)
-
-	//var w = walker.New("1", wg, 10*time.Second)
-	//w.Start(ctx)
-	//
-	//var s = searcher.New(wg)
-	//if err := s.StartServer(); err != nil {
-	//	panic(err)
-	//}
 
 	wg.Wait()
 }
