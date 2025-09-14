@@ -1,16 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"local_google/html"
+	"local_google/robot"
 	"os"
 	"sync"
 )
 
 func main() {
 	var wg = &sync.WaitGroup{}
-	//var ctx = context.Background()
+	var ctx = context.Background()
 
 	file, err := os.OpenFile("test.html", os.O_RDONLY, 0644)
 	if err != nil {
@@ -25,6 +27,25 @@ func main() {
 	}
 
 	fmt.Printf("%v\n", root)
+
+	var robotCfg = robot.DefaultConfig()
+	robotCfg.Queue = &robot.TaskQueue{}
+	robotCfg.Queue.Push("https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html")
+
+	var robots = make([]*robot.Robot, 3)
+	for i := 0; i < len(robots); i++ {
+		r := robot.New(ctx, robotCfg, fmt.Sprintf("r-%d", i))
+		robots[i] = r
+
+		wg.Add(1)
+		go func(r *robot.Robot) {
+			defer wg.Done()
+
+			if err := r.Start(); err != nil {
+				panic(err)
+			}
+		}(r)
+	}
 
 	//var reader = bytes.NewReader(body)
 	//req, err := http.NewRequest("GET", "https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html", reader)
