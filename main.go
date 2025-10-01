@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"local_google/index"
 	"local_google/robot"
 	"local_google/robot/queue"
 	"log/slog"
@@ -19,8 +20,14 @@ func main() {
 	storage = queue.NewLocalStorage(storageCfg)
 	storage = queue.NewInMemStorage(storageCfg, storage)
 
+	var idxCfg = &index.Config{}
+	var idx index.Storage
+	idx = index.NewLocalStorage(idxCfg)
+
 	var robotCfg = robot.DefaultConfig()
 	robotCfg.Queue = storage
+	robotCfg.Idx = idx
+
 	err := robotCfg.Queue.Put(&queue.Entry{Addr: "https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html"})
 	if err != nil {
 		panic(err)

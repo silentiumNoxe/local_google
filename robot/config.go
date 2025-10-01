@@ -1,6 +1,7 @@
 package robot
 
 import (
+	"local_google/index"
 	"local_google/robot/queue"
 	"time"
 )
@@ -8,6 +9,7 @@ import (
 type Config struct {
 	Delay time.Duration
 	Queue queue.Storage
+	Idx   index.Storage
 }
 
 func DefaultConfig() Config {
