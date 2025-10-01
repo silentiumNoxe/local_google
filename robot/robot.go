@@ -2,9 +2,11 @@ package robot
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"local_google/html"
+	"local_google/robot/queue"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -17,7 +19,7 @@ type Robot struct {
 	id  string
 
 	ticker  *time.Ticker
-	queue   *TaskQueue
+	queue   queue.Storage
 	stopped bool
 }
 
@@ -54,43 +56,50 @@ func (r *Robot) Start() error {
 func (r *Robot) step() error {
 	slog.Debug("Robot step", slog.String("rid", r.id))
 
-	task := r.queue.Pop()
-	if task == nil {
-		slog.Info("Queue is empty", slog.String("rid", r.id))
-		return nil
-	}
-
-	if task.Target == "" {
-		return fmt.Errorf("empty target")
-	}
-
-	target, err := url.Parse(task.Target)
+	entries, err := r.queue.Pop(1)
 	if err != nil {
 		return err
 	}
 
-	reader, err := r.request(target)
-	if err != nil {
-		return err
-	}
+	for _, e := range entries {
+		if e == nil {
+			continue
+		}
 
-	slog.Debug("Parse page", slog.String("rid", r.id))
-	node, err := html.Parse(reader)
-	if err != nil {
-		return err
-	}
+		if e.Addr == "" {
+			slog.Info("Empty target", slog.String("rid", r.id), slog.String("entry", hex.EncodeToString(e.ID)))
+			continue
+		}
 
-	slog.Debug("Analyze page", slog.String("rid", r.id))
-	result, err := analyzePage(node, fmt.Sprintf("%s://%s", target.Scheme, target.Host))
-	if err != nil {
-		return err
-	}
+		target, err := url.Parse(e.Addr)
+		if err != nil {
+			return err
+		}
 
-	r.queue.Mutex.Lock()
-	for _, l := range result.Links {
-		r.queue.Push(l)
+		reader, err := r.request(target)
+		if err != nil {
+			return err
+		}
+
+		slog.Debug("Parse page", slog.String("rid", r.id))
+		node, err := html.Parse(reader)
+		if err != nil {
+			return err
+		}
+
+		slog.Debug("Analyze page", slog.String("rid", r.id))
+		result, err := analyzePage(node, fmt.Sprintf("%s://%s", target.Scheme, target.Host))
+		if err != nil {
+			return err
+		}
+
+		for _, l := range result.Links {
+			err := r.queue.Put(&queue.Entry{Addr: l, Score: 0})
+			if err != nil {
+				slog.Warn("Unable to put entry to storage", slog.String("rid", r.id), slog.String("err", err.Error()))
+			}
+		}
 	}
-	r.queue.Mutex.Unlock()
 
 	return nil
 }

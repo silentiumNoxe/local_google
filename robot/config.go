@@ -1,10 +1,13 @@
 package robot
 
-import "time"
+import (
+	"local_google/robot/queue"
+	"time"
+)
 
 type Config struct {
 	Delay time.Duration
-	Queue *TaskQueue
+	Queue queue.Storage
 }
 
 func DefaultConfig() Config {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"local_google/robot"
+	"local_google/robot/queue"
 	"log/slog"
 	"sync"
 )
@@ -13,9 +14,17 @@ func main() {
 	var wg = &sync.WaitGroup{}
 	var ctx = context.Background()
 
+	var storageCfg = &queue.Config{}
+	var storage queue.Storage
+	storage = queue.NewLocalStorage(storageCfg)
+	storage = queue.NewInMemStorage(storageCfg, storage)
+
 	var robotCfg = robot.DefaultConfig()
-	robotCfg.Queue = &robot.TaskQueue{Mutex: &sync.Mutex{}}
-	robotCfg.Queue.Push("https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html")
+	robotCfg.Queue = storage
+	err := robotCfg.Queue.Put(&queue.Entry{Addr: "https://zn.ua/ukr/UKRAINE/rosijska-ataka-na-kijiv-zahiblikh-vzhe-troje-postrazhdalij-vahitnij-zhintsi-zrobili-terminovu-operatsiju.html"})
+	if err != nil {
+		panic(err)
+	}
 
 	var robots = make([]*robot.Robot, 3)
 	for i := 0; i < len(robots); i++ {
@@ -33,4 +42,7 @@ func main() {
 	}
 
 	wg.Wait()
+	if err := storage.Close(); err != nil {
+		slog.Warn("Failed close storage", slog.String("err", err.Error()))
+	}
 }
